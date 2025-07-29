@@ -17,7 +17,7 @@ load_dotenv()
 def get_database_url() -> str:
     """Get the PostgreSQL database URL from environment variables."""
     return os.getenv(
-        "POSTGRES_URL", "postgresql://phda_user:phda_pass@localhost:5432/phda_db"
+        "POSTGRES_URL", "postgresql://phda_user:your_secure_password_here@localhost:5432/phda_db"
     )
 
 
