@@ -1,0 +1,33 @@
+# Docker Compose configuration for Personal Health Data Assistant
+# Phase 1 placeholder with PostgreSQL database
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-phda_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: ${POSTGRES_DB:-phda_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phda_user}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+# TODO: Add service containers in future phases:
+# - ai_data_logger
+# - data_workflows  
+# - analytics_workflows
+# - ai_analytics_assistant
+# - ui
+# - phoenix (Phase 2)
