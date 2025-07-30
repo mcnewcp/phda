@@ -1,0 +1,62 @@
+[project]
+name = "phda"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "psycopg2-binary>=2.9.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0"
+]
+
+[dependency-groups]
+ai-data-logger = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "langgraph>=0.1.0",
+    "openai>=1.0.0",
+    "httpx>=0.24.0"
+]
+
+analytics-workflows = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scikit-learn>=1.3.0",
+    "langgraph>=0.1.0",
+    "scipy>=1.11.0"
+]
+
+ai-analytics-assistant = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "langgraph>=0.1.0",
+    "openai>=1.0.0",
+    "httpx>=0.24.0"
+]
+
+phoenix-monitor = [
+    "arize-phoenix>=4.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0"
+]
+
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+select = ["E", "W", "F", "I"]
