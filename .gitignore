@@ -81,7 +81,7 @@ logs/
 .env.*.local
 
 # Local development files
-#.dev/
+.dev/
 
 # Phoenix monitoring data
 phoenix/
