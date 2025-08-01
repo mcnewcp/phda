@@ -1,136 +1,170 @@
-# CLAUDE.md – Global Project Instructions
+# PHDA Development Context
 
-Read this file **every time** before you (Claude) plan or modify code in this project. Follow these rules unless explicitly instructed otherwise **and** this file is updated.
+## Project Overview
 
----
+**Personal Health Data Assistant (PHDA)** is a Python monorepo containing four microservices:
 
-## 1  Canonical Context
+1. **AI Data Logger** - Parses natural language input ("I ate oatmeal") into structured health logs
+2. **Analytics Workflows** - Automated data import, stats calculation, and predictive modeling  
+3. **AI Analytics Assistant** - On-demand health data analysis ("How's my sleep vs last month?")
+4. **Phoenix Monitor** - Arize Phoenix for agent monitoring (official Docker image)
 
-This project is the **Personal Health Data Assistant** (PHDA).
+All services share database models and communicate via a unified web app interface.
 
-- High‑level roadmap lives in `dev/PLANNING.md` — **always read this file at the start of a new conversation** to understand architecture, goals, style, and constraints.
-- Granular work items live in `dev/features/`.
-- Product‑requirement prompts live in `dev/PRPs/`.
-- The stack is Python‑first, micro‑service oriented, containerised with Docker Compose, and initially single‑user (`user_id = 'mcnewcp'`).
+## Architecture
 
----
+- **Monorepo** with shared database models in `shared/models/`
+- **Single PostgreSQL database** with health tracking tables
+- **Docker Compose** for local development
+- **LangGraph agents** for all AI functionality
+- **Arize Phoenix tracing** for all agent interactions
 
-## 2  Language & Runtime
+## Database Schema
 
-- **Python 3.11+** for all production code.
-- **uv** manages the single repo‑wide virtual environment; dependency *groups* (`[dependency-groups]` in `pyproject.toml`) keep per‑service footprints minimal. **Use ********`uv`******** for all Python commands, including tests.**
-- Use type hints (`from __future__ import annotations`) and adhere to **PEP 8** via **ruff** + **black** (88‑char lines).
+Core health tracking tables:
+- `heart_log` - Blood pressure and heart rate measurements
+- `body_log` - Weight, muscle mass, body fat, hydration metrics
+- `nutrition_log` - Food intake with protein/sodium/potassium tracking
+- `caffeine_log` - Caffeine consumption tracking
+- `alcohol_log` - Alcohol consumption tracking  
+- `sauna_log` - Sauna session duration tracking
 
----
+All tables use `datetime` (timezone-aware) and auto-incrementing `id` primary keys.
 
-## 3  Service Rules
+## Technology Stack
 
-| Service                      | Key Tech                          | Notes                                                              |
-| ---------------------------- | --------------------------------- | ------------------------------------------------------------------ |
-| **ai\_data\_logger**         | LangGraph ReAct agent (manual)    | Must log Phoenix traces; tools: logging, web‑search, calculator.   |
-| **data\_workflows**          | Python sched or cron              | Initial ETL: Apple Health via Health Auto Export POST; extensible. |
-| **analytics\_workflows**     | pandas + plotly (later sklearn)   | Phase 1: summaries only, ML postponed.                             |
-| **ai\_analytics\_assistant** | LangGraph + Python REPL tool      | Read‑only DB access; generates charts on demand.                   |
-| **ui**                       | Streamlit (Phase 1–3) → React SPA | Use `st.plotly_chart` for interactive visuals.                     |
-| **monitoring**               | Arize Phoenix                     | Cloud in Phase 1; self‑host container added Phase 2.               |
+- **Python 3.12+** with uv for dependency management
+- **FastAPI** for service APIs
+- **SQLAlchemy 2.0** with Alembic migrations
+- **PostgreSQL 15** via Docker
+- **LangGraph** for all AI agents
+- **Arize Phoenix** for agent monitoring and tracing
+- **Docker Compose** for development environment
 
-Each service **must** ship:
+## Development Standards
 
-1. `Dockerfile` based on `python:3.11-slim` (or Alpine‑compatible) installing only its dep group.
-2. `entrypoint.sh` (if needed) for start‑up.
-3. Unit tests in `<service>/tests/`.
+### Dependency Management
+- **Single repo-wide uv environment** at project root
+- **Dependency groups** per service (keep minimal)
+- All Python commands executed via `uv`: `uv run pytest`, `uv run alembic upgrade head`
+- Add dependencies: `uv add package-name --group service-name`
 
----
+### Environment Variables
+- Maintain `.env.example` with all required dev environment variables
+- Never commit actual `.env` files
+- Load via `python-dotenv` in application code
+- **Required variables**:
+  - `DATABASE_URL` - PostgreSQL connection string
+  - `OPENAI_API_KEY` - OpenAI API key for LLM calls
+  - `PHOENIX_COLLECTOR_ENDPOINT` - Phoenix tracing endpoint
 
-## 4  Database Contract
+### Database Access
+- **Use shared database utilities** from `shared/utils/database.py`
+- **Always use context manager** pattern: `with get_session() as session:`
+- **Sessions auto-commit on success** and rollback on exceptions
+- Import pattern: `from shared.utils.database import get_session`
 
-- **PostgreSQL**, containerised locally or managed (Supabase) in cloud.
-- All tables include `user_id TEXT NOT NULL DEFAULT 'mcnewcp'`. Primary key = `id SERIAL` unless otherwise specified.
-- SQLAlchemy models live in `shared/db/models.py`.
-- Schema migrations handled via **Alembic** (generate migration scripts per feature when schema changes).
+### Agent Development
+- **All agents use LangGraph** - build graphs manually for full control
+- **Manual graph construction preferred** over prebuilt `create_react_agent` for learning and flexibility
+- **System prompts should include current time** dynamically on each invocation
+- **Instrument with Phoenix tracing** following [LangGraph integration guide](https://arize.com/docs/phoenix/integrations/frameworks/langchain/langchain-tracing)
+- Configure tracing in agent initialization, not per-call
 
----
+### Code Quality Standards
 
-## 5  Environment Configuration
+#### File Size Limits
+- **Maximum 500 lines per source file**
+- Refactor into modules/helpers when approaching limit
+- Prefer composition over large monolithic files
 
-- `.env.example` must list **all** variables a dev needs (`POSTGRES_URL`, `OPENAI_API_KEY`, `ARIZE_API_KEY`, `PHOENIX_COLLECTOR_URL`, etc.).
-- Load variables with `python_dotenv.load_dotenv()` at service start.
-- Do **not** commit real secrets.
+#### Test-Driven Development (TDD)
+When implementing new features:
+1. **Write tests first** - describe expected input/output pairs
+2. **Do NOT create mock implementations** - write real test cases
+3. **Run tests** and confirm they fail (red state)
+4. **Commit failing tests**
+5. **Implement code** to pass tests without modifying test files
+6. **Iterate**: run tests → adjust code → re-run until green
+7. **Commit passing code**
 
----
+After logic updates:
+- **Review and update existing tests** as necessary
+- **Maintain ≥80% test coverage**
+- Run: `uv run pytest --cov=shared --cov=services --cov-fail-under=80`
 
-## 6  Observability (Phoenix)
+#### Documentation Requirements
+- **Google-style docstrings** on all public methods
+- **Comment non-obvious code** for mid-level developer comprehension
+- **Include `# Reason:` comments** explaining complex logic decisions
+- **Update README.md** when features, dependencies, or setup change
 
-- Instrument all agent interactions with Phoenix tracing (see the [LangGraph/LangChain integration guide](https://arize.com/docs/phoenix/integrations/frameworks/langchain/langchain-tracing)).
-- Include `trace_id` in service logs for cross‑reference.
-- Each agent adds a `monitoring.py` helper so importing the package automatically sets up Phoenix.
+#### Development Principles
+- **Simplicity is king** - avoid over-engineering
+- **Never assume missing context** - ask clarifying questions
+- **Never hallucinate** libraries or functions - only use verified packages
+- **Confirm file paths** and module names exist before referencing
+- **Microservices approach** - each service self-contained and containerized
 
----
+## Project Structure
 
-## 7  Coding Standards & Workflow Rules
+```
+phda/
+├── pyproject.toml              # Single root configuration
+├── uv.lock                     # Unified dependency lockfile  
+├── docker-compose.yml          # Development environment
+├── alembic.ini                 # Migration configuration
+├── .env.example                # Required environment variables
+├── migrations/
+│   ├── env.py                  # Shared migration environment
+│   └── versions/               # Migration files
+├── shared/
+│   ├── models/
+│   │   ├── base.py
+│   │   └── health_logs.py      # All health tracking tables
+│   └── utils/                  # Common utilities
+│       └── database.py         # Database session management
+└── services/
+    ├── ai-data-logger/
+    ├── analytics-workflows/
+    ├── ai-analytics-assistant/
+    └── phoenix-monitor/
+```
 
-1. **File size** – never create a source file longer than **500 lines**; refactor into modules/helpers when necessary.
-2. **Testing & Test‑Driven Development (TDD)**
-   - Follow **TDD workflow** for any change that can be verified with unit, integration, or end‑to‑end tests:
-     1. **Write tests first** – describe expected input/output pairs. Explicitly instruct Claude *not* to create mock implementations at this stage.
-     2. **Run the tests** and confirm they fail (red state).
-     3. **Commit the failing tests**.
-     4. **Implement code** that passes the tests, without modifying test files.
-     5. Iterate: run tests → adjust code → re‑run until **all tests pass** (green state).
-     6. **Commit the passing code.**
-   - **Always** create **Pytest unit tests** for every new function, class, route, or behaviour.
-   - After updating any logic, **review and update existing tests** as necessary. Maintain ≥ 80 % coverage.
-3. **Documentation & Comments** **Documentation & Comments**
-   - Comment any **non‑obvious code** so a mid‑level developer can follow.
-   - For complex logic include an inline `# Reason:` comment explaining *why* the approach was taken.
-   - Update `README.md` whenever features, dependencies, or setup steps change.
-4. **Clarity & Safety**
-   - Never assume missing context — ask clarifying questions if uncertain.
-   - Never hallucinate libraries or functions; only import known, verified Python packages.
-   - Always confirm file paths and module names exist before referencing them in code or tests.
-5. **Style & Tooling**
-   - Strict Google‑style docstrings on all public methods.
-   - Prefer **dataclasses** for simple data holders.
-   - Use **async** when IO‑bound; default to sync otherwise.
-   - Enforce ruff/black formatting via pre‑commit.
+## Common Commands
 
----
+**Setup:**
+```bash
+uv sync                                    # Install all dependencies
+docker-compose up                          # Start all services
+uv run alembic upgrade head                # Run migrations
+```
 
-## 8  Prompts & Agents
+**Development:**
+```bash
+uv sync --group ai-data-logger --group dev # Install service deps
+uv run pytest                             # Run tests
+uv run pytest --cov=shared --cov=services # Run with coverage
+uv add package-name --group service-name  # Add dependency
+```
 
-- Never leak internal chain‑of‑thought to end users (unless explicitly in dev mode).
-- Build the ReAct logger agent **manually** — do **not** use the `create_react_agent` helper.
-- Agent tools:
-  - `log_<table>` tools write to Postgres via SQLAlchemy.
-  - `web_search` uses the [Bing Web Search API](https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search); it must parse nutritional data.
-  - `calculate` wraps `python_eval(expr)` with math‑safe guards.
-- Use `shared/utils/dates.py` to resolve relative times against **America/Chicago** timezone.
+**Database:**
+```bash
+uv run alembic revision --autogenerate -m "description"  # Create migration
+uv run alembic upgrade head                               # Apply migrations
+```
 
----
+## Import Patterns
 
-## 9  Docker & Compose
+- Shared models: `from shared.models.health_logs import HeartLog, BodyLog`
+- Shared utilities: `from shared.utils.database import get_session`
+- Service communication via environment variables and HTTP
 
-- Root‑level `docker/compose.yaml` defines services + Postgres + (Phase 2) Phoenix.
-- Use named volumes for Postgres data.
-- Each container installs only its dependency group via `uv pip sync --groups <name>` (optionally pointing to the `.uv` wheel cache to speed builds).
-- Build args / env vars inject revision labels for tracing.
+## Key Constraints
 
----
-
-## 10  CI / Pre‑Commit (future‑proof)
-
-- A future feature file will set up GitHub Actions to run lint, tests, and Docker builds.
-- For now, include `.pre-commit-config.yaml` referencing ruff, black, and trailing‑whitespace hooks.
-
----
-
-## 11  Documentation Etiquette
-
-- Keep `dev/PLANNING.md` succinct; do not bloat with low‑level details.
-- Before starting a new feature, Claude must read the associated feature file and create a detailed PRP in `dev/PRPs/` for approval **before** coding.
-- Do **not** modify this file or PLANNING.md unless explicitly asked.
-
----
-
-**In short**: read PLANNING.md first, respect service boundaries, write clean and well‑reasoned Python, keep files under 500 lines, containerise everything, instrument Phoenix, maintain tests & docs, and ask questions when in doubt.
-
+- **No workspace packages** - single pyproject.toml with dependency groups
+- **Phoenix tracing required** for all agent interactions
+- **TDD workflow** for new feature development
+- **80% test coverage minimum**
+- **500 line file size limit**
+- **Google docstring standard**
