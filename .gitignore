@@ -184,3 +184,4 @@ Thumbs.db
 .env.local
 .env.production
 .env.staging
+.dev
