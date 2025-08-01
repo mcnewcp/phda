@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from langchain_core.tools import tool
 from shared.models.health_logs import HeartLog, BodyLog, SaunaLog
 from shared.utils.database import get_session
@@ -99,7 +99,8 @@ def log_body_data(
 @tool
 def log_sauna_data(
     datetime_value: datetime,
-    duration_min: int
+    duration_min: int,
+    temperature_f: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Log sauna session data.
@@ -107,6 +108,7 @@ def log_sauna_data(
     Args:
         datetime_value: When the sauna session occurred
         duration_min: Duration of the session in minutes
+        temperature_f: Temperature of the sauna in Fahrenheit (optional)
         
     Returns:
         Dictionary with success status and logged data
@@ -115,17 +117,24 @@ def log_sauna_data(
         with get_session() as session:
             sauna_log = SaunaLog(
                 datetime=datetime_value,
-                duration_min=duration_min
+                duration_min=duration_min,
+                temperature_f=temperature_f  # Can be None
             )
             session.add(sauna_log)
             session.commit()
             
-        return {
+        result = {
             "success": True,
             "logged": "sauna session",
             "datetime": datetime_value.isoformat(),
             "duration": duration_min
         }
+        
+        # Only include temperature if provided
+        if temperature_f is not None:
+            result["temperature"] = temperature_f
+            
+        return result
     except Exception as e:
         return {
             "success": False,
