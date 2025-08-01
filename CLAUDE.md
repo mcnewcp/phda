@@ -7,7 +7,7 @@
 1. **AI Data Logger** - Parses natural language input ("I ate oatmeal") into structured health logs
 2. **Analytics Workflows** - Automated data import, stats calculation, and predictive modeling  
 3. **AI Analytics Assistant** - On-demand health data analysis ("How's my sleep vs last month?")
-4. **Phoenix Monitor** - Containerized Arize Phoenix for agent monitoring
+4. **Phoenix Monitor** - Arize Phoenix for agent monitoring (official Docker image)
 
 All services share database models and communicate via a unified web app interface.
 
@@ -53,9 +53,21 @@ All tables use `datetime` (timezone-aware) and auto-incrementing `id` primary ke
 - Maintain `.env.example` with all required dev environment variables
 - Never commit actual `.env` files
 - Load via `python-dotenv` in application code
+- **Required variables**:
+  - `DATABASE_URL` - PostgreSQL connection string
+  - `OPENAI_API_KEY` - OpenAI API key for LLM calls
+  - `PHOENIX_COLLECTOR_ENDPOINT` - Phoenix tracing endpoint
+
+### Database Access
+- **Use shared database utilities** from `shared/utils/database.py`
+- **Always use context manager** pattern: `with get_session() as session:`
+- **Sessions auto-commit on success** and rollback on exceptions
+- Import pattern: `from shared.utils.database import get_session`
 
 ### Agent Development
-- **All agents use LangGraph** - no direct OpenAI API calls
+- **All agents use LangGraph** - build graphs manually for full control
+- **Manual graph construction preferred** over prebuilt `create_react_agent` for learning and flexibility
+- **System prompts should include current time** dynamically on each invocation
 - **Instrument with Phoenix tracing** following [LangGraph integration guide](https://arize.com/docs/phoenix/integrations/frameworks/langchain/langchain-tracing)
 - Configure tracing in agent initialization, not per-call
 
@@ -111,6 +123,7 @@ phda/
 │   │   ├── base.py
 │   │   └── health_logs.py      # All health tracking tables
 │   └── utils/                  # Common utilities
+│       └── database.py         # Database session management
 └── services/
     ├── ai-data-logger/
     ├── analytics-workflows/
