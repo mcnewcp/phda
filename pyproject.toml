@@ -20,6 +20,7 @@ ai-data-logger = [
     "langchain-openai>=0.3.28",
     "langchain-core>=0.3.72",
     "arize-phoenix>=11.16.1",
+    "langchain-ollama>=0.3.6",
     "openinference-instrumentation-langchain>=0.1.50",
 ]
 
