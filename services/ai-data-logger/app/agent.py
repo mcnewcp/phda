@@ -10,9 +10,11 @@ from langgraph.graph.message import add_messages
 from langchain_ollama import ChatOllama
 
 # instrument to phoenix
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:4317"
+# Use environment variable if set, fallback to localhost for development
+phoenix_endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:4317")
 tracer_provider = register(
     project_name="ai-data-logger",
+    endpoint=phoenix_endpoint,
     auto_instrument=True
 )
 
@@ -28,9 +30,11 @@ class State(TypedDict):
 # nodes
 def chatbot(state: State):
     # Initialize model with tools
+    # Use host.docker.internal to connect to Ollama running on host machine
     model = ChatOllama(
         model = "qwen2.5:7b",
-        temperature = 0
+        temperature = 0,
+        base_url = "http://host.docker.internal:11434"
     )
 
     return {"messages": [model.invoke(state["messages"])]}
