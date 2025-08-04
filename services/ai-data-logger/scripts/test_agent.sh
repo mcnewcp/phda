@@ -43,9 +43,8 @@ for prompt in "${PROMPTS[@]}"; do
         ]
     }')
     
-    # Make the API call with timeout and better error handling
+    # Make the API call
     echo -e "\n🚀 Sending request..."
-    echo "📤 Payload: $json_payload"
     
     response=$(curl -s --max-time 120 --connect-timeout 5 \
         -X POST "$API_URL/chat" \
@@ -56,15 +55,16 @@ for prompt in "${PROMPTS[@]}"; do
     
     # Check if curl succeeded
     if [ $? -ne 0 ]; then
-        echo "❌ Curl failed: $response"
+        if echo "$response" | grep -q "timeout"; then
+            echo "⏰ Request timed out after 120 seconds"
+        else
+            echo "❌ Request failed: $response"
+        fi
         continue
     fi
     
-    # Extract HTTP status and response body
-    http_status=$(echo "$response" | grep -o "HTTP_STATUS:[0-9]*" | cut -d: -f2)
+    # Extract response body
     response_body=$(echo "$response" | sed 's/HTTP_STATUS:[0-9]*$//')
-    
-    echo "📊 HTTP Status: $http_status"
     
     # Pretty print the response
     echo -e "\n📋 Response:"
