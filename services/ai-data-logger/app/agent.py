@@ -10,10 +10,11 @@ import pytz
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage
 from langchain_ollama import ChatOllama
 
-#from <health_log_tools.py> import log_heart_data, log_body_data, log_sauna_data
+from tools.health_log_tools import log_heart_data, log_body_data, log_sauna_data
 
 # instrument to phoenix
 # Use environment variable if set, fallback to localhost for development
@@ -60,7 +61,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 # nodes
-def chatbot(state: State):
+def call_model(state: State):
     # Initialize model with tools
     # Use host.docker.internal to connect to Ollama running on host machine
     model = ChatOllama(
@@ -68,6 +69,8 @@ def chatbot(state: State):
         temperature = 0,
         base_url = "http://host.docker.internal:11434"
     )
+    tools = [log_heart_data, log_body_data, log_sauna_data]
+    model_with_tools = model.bind_tools(tools)
 
     # build messages
     messages = state["messages"]
@@ -77,8 +80,19 @@ def chatbot(state: State):
         *messages
     ]
 
-    response = model.invoke(messages_with_system)
+    response = model_with_tools.invoke(messages_with_system)
     return {"messages": [response]}
+
+def should_continue(state: State):
+    """Determine if we should continue to tools or end."""
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    # If the LLM wants to use tools, route to tool node
+    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+        return "tools"
+    # Otherwise we're done
+    return END
 
 def create_health_logger_agent():
     """Create the health logger agent graph."""
@@ -86,29 +100,28 @@ def create_health_logger_agent():
     graph_builder = StateGraph(State)
     
     # Define the tools
-    # tools = [log_heart_data, log_body_data, log_sauna_data]
-    # tool_node = ToolNode(tools)
+    tools = [log_heart_data, log_body_data, log_sauna_data]
+    tool_node = ToolNode(tools)
     
     # Add nodes
-    graph_builder.add_node("chatbot", chatbot)
-    # workflow.add_node("tools", tool_node)
+    graph_builder.add_node("agent", call_model)
+    graph_builder.add_node("tools", tool_node)
     
     # Set entry point
-    graph_builder.add_edge(START, "chatbot")
-    graph_builder.add_edge("chatbot", END)
+    graph_builder.add_edge(START, "agent")
     
     # Add conditional edges
-    # workflow.add_conditional_edges(
-    #     "agent",
-    #     should_continue,
-    #     {
-    #         "tools": "tools",
-    #         END: END
-    #     }
-    # )
+    graph_builder.add_conditional_edges(
+        "agent",
+        should_continue,
+        {
+            "tools": "tools",
+            END: END
+        }
+    )
     
     # Always return to agent after tool execution
-    # workflow.add_edge("tools", "agent")
+    graph_builder.add_edge("tools", "agent")
     
     # Compile the graph
     return graph_builder.compile()
