@@ -38,6 +38,7 @@ services:
       - "8001:8000"
     environment:
       DATABASE_URL: postgresql://phda_user:phda_password@db:5432/phda_dev
+      LLM_PROVIDER: ${LLM_PROVIDER}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       PHOENIX_COLLECTOR_ENDPOINT: http://phoenix-monitor:4317
     volumes:

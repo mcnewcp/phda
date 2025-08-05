@@ -4,6 +4,7 @@ from phoenix.otel import register
 from typing import Annotated
 
 from typing_extensions import TypedDict
+from pydantic import SecretStr
 
 from datetime import datetime
 import pytz
@@ -13,6 +14,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 from tools.health_log_tools import log_heart_data, log_body_data, log_sauna_data
 
@@ -60,15 +62,33 @@ class State(TypedDict):
     # (in this case, it appends messages to the list, rather than overwriting them)
     messages: Annotated[list, add_messages]
 
+# LLM provider factory
+def get_llm_model():
+    """Get the configured LLM model based on environment variable."""
+    provider = os.environ.get("LLM_PROVIDER", "ollama").lower()
+    
+    if provider == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required when using OpenAI provider")
+        return ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0,
+            api_key=SecretStr(api_key)
+        )
+    elif provider == "ollama":
+        return ChatOllama(
+            model="qwen2.5:7b",
+            temperature=0,
+            base_url="http://host.docker.internal:11434"
+        )
+    else:
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
 # nodes
 def call_model(state: State):
     # Initialize model with tools
-    # Use host.docker.internal to connect to Ollama running on host machine
-    model = ChatOllama(
-        model = "qwen2.5:7b",
-        temperature = 0,
-        base_url = "http://host.docker.internal:11434"
-    )
+    model = get_llm_model()
     tools = [log_heart_data, log_body_data, log_sauna_data]
     model_with_tools = model.bind_tools(tools)
 
