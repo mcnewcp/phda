@@ -53,3 +53,4 @@ class SaunaLog(Base):
     id = Column(Integer, primary_key=True)
     datetime = Column(DateTime(timezone=True), nullable=False)
     duration_min = Column(Integer, nullable=False)
+    temperature_f = Column(Integer, nullable=True)

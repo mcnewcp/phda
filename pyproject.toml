@@ -16,7 +16,12 @@ ai-data-logger = [
     "uvicorn>=0.23.0",
     "langgraph>=0.1.0",
     "openai>=1.0.0",
-    "httpx>=0.24.0"
+    "httpx>=0.24.0",
+    "langchain-openai>=0.3.28",
+    "langchain-core>=0.3.72",
+    "arize-phoenix>=11.16.1",
+    "langchain-ollama>=0.3.6",
+    "openinference-instrumentation-langchain>=0.1.50",
 ]
 
 analytics-workflows = [

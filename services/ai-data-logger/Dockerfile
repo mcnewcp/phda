@@ -19,8 +19,9 @@ RUN uv sync --frozen --no-group dev --group ai-data-logger
 COPY shared/ ./shared/
 COPY services/ai-data-logger/ ./services/ai-data-logger/
 
-# Set Python path
+# Set Python path to include the app root and service directory
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app:/app/services/ai-data-logger"
 
 WORKDIR /app/services/ai-data-logger
 
