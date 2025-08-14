@@ -1,0 +1,31 @@
+{
+  "commands": [
+    {
+      "name": "engineer",
+      "description": "Plan, implement, and validate a given task",
+      "usage": "/engineer <task>",
+      "example": "/engineer Add another FastAPI endpoint at /chat which chats with the agent using sync.",
+      "promptFile": ".claude/commands/engineer.md"
+    },
+        {
+      "name": "debug",
+      "description": "Debug a demonstrable issue",
+      "usage": "/debug <issue>",
+      "example": "/debug When I run `python start_server.py` in the terminal, the server fails to start.",
+      "promptFile": ".claude/commands/debug.md"
+    },
+    {
+      "name": "refactor",
+      "description": "Refactor codebase for simplicity and human readability",
+      "usage": "/refactor <task>",
+      "example": "/refactor There are too many individual modules for streaming.  We should simplify and combine where appropriate.",
+      "promptFile": ".claude/commands/refactor.md"
+    }
+  ],
+  "configuration": {
+    "projectName": "phda",
+    "pythonVersion": "3.11",
+    "testFramework": "pytest",
+    "asyncTestFramework": "pytest-asyncio"
+  }
+}

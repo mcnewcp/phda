@@ -1,170 +1,41 @@
-# PHDA Development Context
+# CLAUDE.md - Global Rules and Guidance for Claude Code
 
-## Project Overview
+## Project Context
+You are working on `phda`, a health tracking application using AI to help users log, analyze, and understand health data through natural language interactions.
 
-**Personal Health Data Assistant (PHDA)** is a Python monorepo containing four microservices:
+## Global Development Rules
 
-1. **AI Data Logger** - Parses natural language input ("I ate oatmeal") into structured health logs
-2. **Analytics Workflows** - Automated data import, stats calculation, and predictive modeling  
-3. **AI Analytics Assistant** - On-demand health data analysis ("How's my sleep vs last month?")
-4. **Phoenix Monitor** - Arize Phoenix for agent monitoring (official Docker image)
+### Language and Framework Requirements
+- Python 3.11+ for all backend code
+- FastAPI for API endpoints
+- LangGraph for agent orchestration
+- LangChain for LLM integration
+- pytest and pytest-asyncio for testing
+- No unnecessary dependencies - keep it minimal but functional
 
-All services share database models and communicate via a unified web app interface.
+### Code Style and Quality
+- Follow PEP 8 for Python code
+- Use type hints for all function signatures
+- Docstrings for all public functions and classes
+- Keep functions small and focused (< 30 lines preferred)
+- Meaningful variable names - no single letters except for indices
 
-## Architecture
+### File Organization
+- Source code in `src/` directory
+- Tests in `tests/` directory
+- All imports should be absolute from `src` package
 
-- **Monorepo** with shared database models in `shared/models/`
-- **Single PostgreSQL database** with health tracking tables
-- **Docker Compose** for local development
-- **LangGraph agents** for all AI functionality
-- **Arize Phoenix tracing** for all agent interactions
+### Documentation
+- Keep comments concise and relevant
+- Document "why" not "what" in code comments
 
-## Database Schema
+### Simplicity Principle
+**SIMPLICITY IS KING** - Always choose the simpler solution when multiple approaches exist. This is not production software. Make it work, make it clear, keep it simple. However, it should be a **real working implementation** - not mocked or faked. 
 
-Core health tracking tables:
-- `heart_log` - Blood pressure and heart rate measurements
-- `body_log` - Weight, muscle mass, body fat, hydration metrics
-- `nutrition_log` - Food intake with protein/sodium/potassium tracking
-- `caffeine_log` - Caffeine consumption tracking
-- `alcohol_log` - Alcohol consumption tracking  
-- `sauna_log` - Sauna session duration tracking
-
-All tables use `datetime` (timezone-aware) and auto-incrementing `id` primary keys.
-
-## Technology Stack
-
-- **Python 3.12+** with uv for dependency management
-- **FastAPI** for service APIs
-- **SQLAlchemy 2.0** with Alembic migrations
-- **PostgreSQL 15** via Docker
-- **LangGraph** for all AI agents
-- **Arize Phoenix** for agent monitoring and tracing
-- **Docker Compose** for development environment
-
-## Development Standards
-
-### Dependency Management
-- **Single repo-wide uv environment** at project root
-- **Dependency groups** per service (keep minimal)
-- All Python commands executed via `uv`: `uv run pytest`, `uv run alembic upgrade head`
-- Add dependencies: `uv add package-name --group service-name`
-
-### Environment Variables
-- Maintain `.env.example` with all required dev environment variables
-- Never commit actual `.env` files
-- Load via `python-dotenv` in application code
-- **Required variables**:
-  - `DATABASE_URL` - PostgreSQL connection string
-  - `OPENAI_API_KEY` - OpenAI API key for LLM calls
-  - `PHOENIX_COLLECTOR_ENDPOINT` - Phoenix tracing endpoint
-
-### Database Access
-- **Use shared database utilities** from `shared/utils/database.py`
-- **Always use context manager** pattern: `with get_session() as session:`
-- **Sessions auto-commit on success** and rollback on exceptions
-- Import pattern: `from shared.utils.database import get_session`
-
-### Agent Development
-- **All agents use LangGraph** - build graphs manually for full control
-- **Manual graph construction preferred** over prebuilt `create_react_agent` for learning and flexibility
-- **System prompts should include current time** dynamically on each invocation
-- **Instrument with Phoenix tracing** following [LangGraph integration guide](https://arize.com/docs/phoenix/integrations/frameworks/langchain/langchain-tracing)
-- Configure tracing in agent initialization, not per-call
-
-### Code Quality Standards
-
-#### File Size Limits
-- **Maximum 500 lines per source file**
-- Refactor into modules/helpers when approaching limit
-- Prefer composition over large monolithic files
-
-#### Test-Driven Development (TDD)
-When implementing new features:
-1. **Write tests first** - describe expected input/output pairs
-2. **Do NOT create mock implementations** - write real test cases
-3. **Run tests** and confirm they fail (red state)
-4. **Commit failing tests**
-5. **Implement code** to pass tests without modifying test files
-6. **Iterate**: run tests → adjust code → re-run until green
-7. **Commit passing code**
-
-After logic updates:
-- **Review and update existing tests** as necessary
-- **Maintain ≥80% test coverage**
-- Run: `uv run pytest --cov=shared --cov=services --cov-fail-under=80`
-
-#### Documentation Requirements
-- **Google-style docstrings** on all public methods
-- **Comment non-obvious code** for mid-level developer comprehension
-- **Include `# Reason:` comments** explaining complex logic decisions
-- **Update README.md** when features, dependencies, or setup change
-
-#### Development Principles
-- **Simplicity is king** - avoid over-engineering
-- **Never assume missing context** - ask clarifying questions
-- **Never hallucinate** libraries or functions - only use verified packages
-- **Confirm file paths** and module names exist before referencing
-- **Microservices approach** - each service self-contained and containerized
-
-## Project Structure
-
-```
-phda/
-├── pyproject.toml              # Single root configuration
-├── uv.lock                     # Unified dependency lockfile  
-├── docker-compose.yml          # Development environment
-├── alembic.ini                 # Migration configuration
-├── .env.example                # Required environment variables
-├── migrations/
-│   ├── env.py                  # Shared migration environment
-│   └── versions/               # Migration files
-├── shared/
-│   ├── models/
-│   │   ├── base.py
-│   │   └── health_logs.py      # All health tracking tables
-│   └── utils/                  # Common utilities
-│       └── database.py         # Database session management
-└── services/
-    ├── ai-data-logger/
-    ├── analytics-workflows/
-    ├── ai-analytics-assistant/
-    └── phoenix-monitor/
-```
-
-## Common Commands
-
-**Setup:**
-```bash
-uv sync                                    # Install all dependencies
-docker-compose up                          # Start all services
-uv run alembic upgrade head                # Run migrations
-```
-
-**Development:**
-```bash
-uv sync --group ai-data-logger --group dev # Install service deps
-uv run pytest                             # Run tests
-uv run pytest --cov=shared --cov=services # Run with coverage
-uv add package-name --group service-name  # Add dependency
-```
-
-**Database:**
-```bash
-uv run alembic revision --autogenerate -m "description"  # Create migration
-uv run alembic upgrade head                               # Apply migrations
-```
-
-## Import Patterns
-
-- Shared models: `from shared.models.health_logs import HeartLog, BodyLog`
-- Shared utilities: `from shared.utils.database import get_session`
-- Service communication via environment variables and HTTP
-
-## Key Constraints
-
-- **No workspace packages** - single pyproject.toml with dependency groups
-- **Phoenix tracing required** for all agent interactions
-- **TDD workflow** for new feature development
-- **80% test coverage minimum**
-- **500 line file size limit**
-- **Google docstring standard**
+## Important Reminders
+- Clarity over cleverness
+- Do not optimize prematurely
+- Ask for clarification if requirements are ambiguous
+- Validate assumptions with tests
+- **activate .venv** prior to running any commands
+- The user does not need a sycophant.  The user needs an equal who will openly discuss and correct them when they're wrong.  You should be critical of the user's decisions and suggestions. 
