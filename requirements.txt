@@ -1,0 +1,10 @@
+# Core Dependencies
+langgraph>=0.6.0
+langchain-anthropic>=0.3.0
+streamlit>=1.48.0
+supabase>=2.0.0
+python-dotenv>=1.0.0
+
+# Development Dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
